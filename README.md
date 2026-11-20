@@ -1,19 +1,19 @@
 # CITY CRIME: ULTRA
 
-Browser-based 3D open-world game built with Three.js and JavaScript.
+Браузерная 3D-игра на Three.js и JavaScript.
 
-## Local development
+## Локальный запуск
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Production build
+## Сборка
 
 ```bash
 npm run build
 npm run preview
 ```
 
-The source project will be uploaded in the next commit.
+Репозиторий подключён к ChatGPT с правами чтения и записи. Исходники игры и настройка GitHub Pages будут добавлены следующим этапом.
