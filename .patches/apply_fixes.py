@@ -1,58 +1,67 @@
 from pathlib import Path
 
-ROOT = Path('.')
-main_path = ROOT / 'src' / 'main.js'
-style_path = ROOT / 'src' / 'style.css'
-html_path = ROOT / 'index.html'
+main_path = Path('src/main.js')
+style_path = Path('src/style.css')
+html_path = Path('index.html')
 
 
-def replace_once(text: str, old: str, new: str, label: str) -> str:
+def replace_once(text, old, new, label):
     if new in text:
         return text
     count = text.count(old)
     if count != 1:
-        print(f'Patch mismatch: {label}; found {count}. Nearby source:')
-        for i, line in enumerate(text.splitlines(), 1):
-            if any(term in line for term in ('roadMaterial', 'mapRoads.push', 'yellowLine', 'isRoadSurface', 'mobile-look', 'pointerup')):
-                print(f'{i}: {line[:500]}')
-        raise SystemExit(f'Patch stopped: expected one match for {label}, found {count}')
+        raise SystemExit(f'Patch stopped: {label}; expected one match, found {count}')
     return text.replace(old, new, 1)
 
 
 main = main_path.read_text(encoding='utf-8')
-replacements = [
-    ("addBox(7,.018,.16,mats.line,x,.015,center-5.4,scene,false);", "addBox(7,.018,.16,mats.line,x,-.045,center-5.4,scene,false);", "east-west lane marking 1"),
-    ("addBox(7,.018,.16,mats.line,x,.015,center+5.4,scene,false);", "addBox(7,.018,.16,mats.line,x,-.045,center+5.4,scene,false);", "east-west lane marking 2"),
-    ("addBox(len,.022,.2,mats.yellowLine,0,.02,center-.12,scene,false);", "addBox(len,.022,.2,mats.yellowLine,0,-.04,center-.12,scene,false);", "east-west center line 1"),
-    ("addBox(len,.022,.2,mats.yellowLine,0,.02,center+.12,scene,false);", "addBox(len,.022,.2,mats.yellowLine,0,-.04,center+.12,scene,false);", "east-west center line 2"),
-    ("const m = addGround(w, len, roadMaterial, center, 0); m.position.y = -0.05; mapRoads.push({x:center,z:0,w,d:len});", "const m = addGround(w, len, roadMaterial, center, 0); m.position.y = -0.035; mapRoads.push({x:center,z:0,w,d:len});", "north-south road height"),
-    ("addBox(.16,.018,7,mats.line,center-5.4,.015,z,scene,false);", "addBox(.16,.018,7,mats.line,center-5.4,-.025,z,scene,false);", "north-south lane marking 1"),
-    ("addBox(.16,.018,7,mats.line,center+5.4,.015,z,scene,false);", "addBox(.16,.018,7,mats.line,center+5.4,-.025,z,scene,false);", "north-south lane marking 2"),
-    ("addBox(.2,.022,len,mats.yellowLine,center-.12,.02,0,scene,false);", "addBox(.2,.022,len,mats.yellowLine,center-.12,-.02,0,scene,false);", "north-south center line 1"),
-    ("addBox(.2,.022,len,mats.yellowLine,center+.12,.02,0,scene,false);", "addBox(.2,.022,len,mats.yellowLine,center+.12,-.02,0,scene,false);", "north-south center line 2"),
-    ("addBox(1.3,.025,5.8,mats.line,cross+i*1.9,.025,v-7,scene,false);", "addBox(1.3,.025,5.8,mats.line,cross+i*1.9,-.037,v-7,scene,false);", "horizontal crosswalk"),
-    ("addBox(5.8,.025,1.3,mats.line,v-7,.025,cross+i*1.9,scene,false);", "addBox(5.8,.025,1.3,mats.line,v-7,-.017,cross+i*1.9,scene,false);", "vertical crosswalk"),
-    ("function isRoadSurface(x,z,buffer=11.5){", "function isRoadSurface(x,z,buffer=14.5){", "tree road exclusion"),
-]
-for old, new, label in replacements:
-    main = replace_once(main, old, new, label)
+# Give each road its own texture repeat so horizontal and vertical streets do not share stretched UVs.
+main = replace_once(main,
+    "const w = 20, len = 420;",
+    "const w = 20, len = 420;\n  const roadMaterial = asphaltMaterial.clone();\n  if (asphaltMaterial.map) {\n    roadMaterial.map = asphaltMaterial.map.clone();\n    roadMaterial.map.needsUpdate = true;\n    roadMaterial.map.repeat.set(axis === 'x' ? len / 12 : w / 12, axis === 'x' ? w / 12 : len / 12);\n  }",
+    'independent road texture')
+main = main.replace('addGround(len, w, asphaltMaterial, 0, center)', 'addGround(len, w, roadMaterial, 0, center)')
+main = main.replace('addGround(w, len, asphaltMaterial, center, 0)', 'addGround(w, len, roadMaterial, center, 0)')
+main = replace_once(main,
+    'const m = addGround(len, w, roadMaterial, 0, center); mapRoads.push({x:0,z:center,w:len,d:w});',
+    'const m = addGround(len, w, roadMaterial, 0, center); m.position.y = -0.055; mapRoads.push({x:0,z:center,w:len,d:w});',
+    'horizontal road height')
+main = replace_once(main,
+    'addGround(w, len, roadMaterial, center, 0); mapRoads.push({x:center,z:0,w,d:len});',
+    'const m = addGround(w, len, roadMaterial, center, 0); m.position.y = -0.035; mapRoads.push({x:center,z:0,w,d:len});',
+    'vertical road height')
 
-main = replace_once(main,
-    "$('mobile-look').addEventListener('pointerdown',e=>{e.preventDefault();toast('Проводи пальцем по свободной части экрана, чтобы вращать камеру');});",
-    "$('mobile-look').addEventListener('pointerdown',e=>{e.preventDefault();toast('Проводи пальцем по свободной части экрана, чтобы вращать камеру');});\n"
-    "$('mobile-map').addEventListener('pointerdown',e=>{e.preventDefault();if(started&&!dead&&!paused){$('map-screen').classList.remove('hidden');paused=true;drawMap($('bigmap'),true);}});\n"
-    "$('mobile-pause').addEventListener('pointerdown',e=>{e.preventDefault();if(!started||dead)return;paused=!paused;$('pause-screen').classList.toggle('hidden',!paused);});",
-    "mobile map/pause handlers")
-main = replace_once(main,
-    "renderer.domElement.addEventListener('pointerup',e=>{if(touchLook&&e.pointerId===touchLook.id)touchLook=null;});",
-    "renderer.domElement.addEventListener('pointerup',e=>{if(touchLook&&e.pointerId===touchLook.id)touchLook=null;});\nrenderer.domElement.addEventListener('pointercancel',e=>{if(touchLook&&e.pointerId===touchLook.id)touchLook=null;});",
-    "touch camera cancel")
+road_paint = [
+    ('addBox(7,.018,.16,mats.line,x,.015,center-5.4,scene,false);', 'addBox(7,.018,.16,mats.line,x,-.045,center-5.4,scene,false);'),
+    ('addBox(7,.018,.16,mats.line,x,.015,center+5.4,scene,false);', 'addBox(7,.018,.16,mats.line,x,-.045,center+5.4,scene,false);'),
+    ('addBox(len,.022,.2,mats.yellowLine,0,.02,center-.12,scene,false);', 'addBox(len,.022,.2,mats.yellowLine,0,-.04,center-.12,scene,false);'),
+    ('addBox(len,.022,.2,mats.yellowLine,0,.02,center+.12,scene,false);', 'addBox(len,.022,.2,mats.yellowLine,0,-.04,center+.12,scene,false);'),
+    ('addBox(.16,.018,7,mats.line,center-5.4,.015,z,scene,false);', 'addBox(.16,.018,7,mats.line,center-5.4,-.025,z,scene,false);'),
+    ('addBox(.16,.018,7,mats.line,center+5.4,.015,z,scene,false);', 'addBox(.16,.018,7,mats.line,center+5.4,-.025,z,scene,false);'),
+    ('addBox(.2,.022,len,mats.yellowLine,center-.12,.02,0,scene,false);', 'addBox(.2,.022,len,mats.yellowLine,center-.12,-.02,0,scene,false);'),
+    ('addBox(.2,.022,len,mats.yellowLine,center+.12,.02,0,scene,false);', 'addBox(.2,.022,len,mats.yellowLine,center+.12,-.02,0,scene,false);'),
+    ('addBox(1.3,.025,5.8,mats.line,cross+i*1.9,.025,v-7,scene,false);', 'addBox(1.3,.025,5.8,mats.line,cross+i*1.9,-.037,v-7,scene,false);'),
+    ('addBox(5.8,.025,1.3,mats.line,v-7,.025,cross+i*1.9,scene,false);', 'addBox(5.8,.025,1.3,mats.line,v-7,-.017,cross+i*1.9,scene,false);'),
+]
+for old, new in road_paint:
+    if old in main:
+        main = main.replace(old, new)
+main = main.replace('function isRoadSurface(x,z,buffer=11.5){', 'function isRoadSurface(x,z,buffer=14.5){')
+
+# Mobile map/pause buttons, plus correct placement of the touch targets.
+look_handler = "$('mobile-look').addEventListener('pointerdown',e=>{e.preventDefault();toast('Проводи пальцем по свободной части экрана, чтобы вращать камеру');});"
+if "$('mobile-map')" not in main:
+    main = replace_once(main, look_handler,
+        look_handler + "\n$('mobile-map').addEventListener('pointerdown',e=>{e.preventDefault();if(started&&!dead&&!paused){$('map-screen').classList.remove('hidden');paused=true;drawMap($('bigmap'),true);}});\n$('mobile-pause').addEventListener('pointerdown',e=>{e.preventDefault();if(!started||dead)return;paused=!paused;$('pause-screen').classList.toggle('hidden',!paused);});",
+        'mobile map/pause handlers')
+pointer_up = "renderer.domElement.addEventListener('pointerup',e=>{if(touchLook&&e.pointerId===touchLook.id)touchLook=null;});"
+if 'pointercancel' not in main:
+    main = replace_once(main, pointer_up, pointer_up + "\nrenderer.domElement.addEventListener('pointercancel',e=>{if(touchLook&&e.pointerId===touchLook.id)touchLook=null;});", 'touch camera cancel')
 main_path.write_text(main, encoding='utf-8')
 
 html = html_path.read_text(encoding='utf-8')
 if 'id="mobile-map"' not in html:
-    html = replace_once(html,
-        '<div id="mobile-controls" class="mobile-controls">',
+    html = replace_once(html, '<div id="mobile-controls" class="mobile-controls">',
         '<div id="mobile-controls" class="mobile-controls">\n      <div class="mobile-top-actions"><button id="mobile-map" class="mobile-top-btn">КАРТА</button><button id="mobile-pause" class="mobile-top-btn">Ⅱ</button></div>',
         'mobile top buttons')
 html = html.replace('id="mobile-jump" class="mobile-btn"', 'id="mobile-jump" class="mobile-btn jump-btn"')
