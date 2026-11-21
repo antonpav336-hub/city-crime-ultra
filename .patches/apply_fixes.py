@@ -11,12 +11,15 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
         return text
     count = text.count(old)
     if count != 1:
+        print(f'Patch mismatch: {label}; found {count}. Nearby source:')
+        for i, line in enumerate(text.splitlines(), 1):
+            if any(term in line for term in ('roadMaterial', 'mapRoads.push', 'yellowLine', 'isRoadSurface', 'mobile-look', 'pointerup')):
+                print(f'{i}: {line[:500]}')
         raise SystemExit(f'Patch stopped: expected one match for {label}, found {count}')
     return text.replace(old, new, 1)
 
 
 main = main_path.read_text(encoding='utf-8')
-# Road surface height and road paint alignment: eliminate z-fighting and floating markings.
 replacements = [
     ("addBox(7,.018,.16,mats.line,x,.015,center-5.4,scene,false);", "addBox(7,.018,.16,mats.line,x,-.045,center-5.4,scene,false);", "east-west lane marking 1"),
     ("addBox(7,.018,.16,mats.line,x,.015,center+5.4,scene,false);", "addBox(7,.018,.16,mats.line,x,-.045,center+5.4,scene,false);", "east-west lane marking 2"),
@@ -93,5 +96,4 @@ if marker not in style:
 }
 '''
     style_path.write_text(style, encoding='utf-8')
-
 print('Applied road and mobile-control fixes.')
