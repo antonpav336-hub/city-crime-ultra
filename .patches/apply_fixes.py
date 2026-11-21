@@ -104,5 +104,6 @@ if marker not in style:
   .player-bars{width:92px}
 }
 '''
+    style += "\n/* Force touch controls on coarse-pointer phones, including landscape/tablet widths. */\n#mobile-controls{z-index:8;display:none;pointer-events:none}\n#mobile-controls .joystick,#mobile-controls .mobile-btn,#mobile-controls .mobile-top-btn{pointer-events:auto}\n#mobile-controls .mobile-actions{pointer-events:none}\n#mobile-controls .mobile-btn{touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none}\n@media (pointer:coarse),(max-width:760px){\n  #mobile-controls{display:block!important}\n  .bottom-right.controls{display:none}\n  #mobile-controls .joystick{display:block}\n  #mobile-controls .mobile-actions{display:block}\n}\n@media (hover:none) and (orientation:landscape){\n  #mobile-controls .joystick{width:116px;height:116px;left:14px;bottom:12px}\n  #mobile-controls .mobile-actions{right:8px;bottom:8px;transform:scale(.9);transform-origin:bottom right}\n}\n"
     style_path.write_text(style, encoding='utf-8')
 print('Applied road and mobile-control fixes.')
